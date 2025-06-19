@@ -47,6 +47,13 @@ const Login = () => {
 
     return (
         <Card className="w-full max-w-md mx-auto">
+
+            <h2 className="p-2">Under development use below details to login</h2>
+
+            <h3 className="p-2">For admin email : admin@gmail.com  password : admin@123</h3>
+
+            <h3 className="p-2">For Employee   email : gana@gmail.com  password : gana@123</h3>
+
             <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-gray-100 mb-6">
                 Welcome Back!
             </h2>

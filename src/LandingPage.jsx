@@ -25,6 +25,8 @@ const LandingPage = () => {
                 p-6 sm:p-8 md:p-12  /* Adjusted padding for smaller screens */
             ">
 
+
+
                 <div className="md:w-1/2 w-full flex items-center justify-center">
                     <Login />
                 </div>
