@@ -34,60 +34,73 @@ export const AuthProvider = ({ children }) => {
     const [userProfile, setUserProfile] = useState(null);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            setCurrentUser(user);
-            setUserId(user ? user.uid : null);
-            setIsAdmin(false);
+        let isMounted = true; // to avoid memory leaks in async calls
 
-            if (user) {
-                const userDocRef = doc(db, 'apps', appId, 'users', user.uid);
-                try {
-                    const docSnap = await getDoc(userDocRef);
-                    if (docSnap.exists()) {
-                        const profile = docSnap.data();
-                        setUserProfile(profile);
-                        setIsAdmin(profile.role === 'admin');
-                        console.log("AuthContext: User profile loaded:", profile);
-                    } else {
-                        console.warn("AuthContext: User profile not found in Firestore for UID:", user.uid, "Creating default profile.");
-                        const newProfile = {
-                            email: user.email,
-                            role: 'employee',
-                            createdAt: new Date().toISOString()
-                        };
-                        await setDoc(userDocRef, newProfile);
-                        setUserProfile(newProfile);
-                        setIsAdmin(false);
-                    }
-                } catch (error) {
-                    console.error("AuthContext: Error fetching or creating user profile:", error);
-                    setAuthError("Failed to load user profile. Please try again.");
-                }
-            } else {
-                setUserProfile(null);
-                setIsAdmin(false);
-            }
-            setIsLoading(false);
-        });
+        // Wrap the entire auth check & token login flow in one async function
+        const initAuth = async () => {
+            setIsLoading(true);
 
-        const handleInitialTokenLogin = async () => {
-            if (initialAuthToken && !currentUser) {
+            if (initialAuthToken && !auth.currentUser) {
                 try {
-                    setIsLoading(true);
                     await signInWithCustomToken(auth, initialAuthToken);
                     console.log("AuthContext: Signed in with initial custom token.");
                 } catch (error) {
                     console.error("AuthContext: Error signing in with initial custom token:", error);
                     setAuthError("Automatic login failed with provided token.");
-                    setIsLoading(false);
                 }
-            } else if (!initialAuthToken && !currentUser) {
-                setIsLoading(false);
             }
+
+            // Listen to auth state changes
+            const unsubscribe = onAuthStateChanged(auth, async (user) => {
+                if (!isMounted) return;
+
+                setCurrentUser(user);
+                setUserId(user ? user.uid : null);
+                setIsAdmin(false);
+
+                if (user) {
+                    try {
+                        const userDocRef = doc(db, 'apps', appId, 'users', user.uid);
+                        const docSnap = await getDoc(userDocRef);
+                        if (docSnap.exists()) {
+                            const profile = docSnap.data();
+                            setUserProfile(profile);
+                            setIsAdmin(profile.role === 'admin');
+                            console.log("AuthContext: User profile loaded:", profile);
+                        } else {
+                            const newProfile = {
+                                email: user.email,
+                                role: 'employee',
+                                createdAt: new Date().toISOString()
+                            };
+                            await setDoc(userDocRef, newProfile);
+                            setUserProfile(newProfile);
+                            setIsAdmin(false);
+                        }
+                    } catch (error) {
+                        console.error("AuthContext: Error fetching or creating user profile:", error);
+                        setAuthError("Failed to load user profile. Please try again.");
+                    }
+                } else {
+                    setUserProfile(null);
+                    setIsAdmin(false);
+                }
+
+                setIsLoading(false);
+            });
+
+            return unsubscribe;
         };
 
-        handleInitialTokenLogin();
-        return () => unsubscribe();
+        let unsubscribe;
+        initAuth().then((unsub) => {
+            unsubscribe = unsub;
+        });
+
+        return () => {
+            isMounted = false;
+            if (unsubscribe) unsubscribe();
+        };
     }, []);
 
     const login = async (email, password) => {

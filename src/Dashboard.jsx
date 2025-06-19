@@ -31,6 +31,7 @@ const AnnouncementCard = ({ announcement }) => {
             <p className="break-words overflow-hidden w-full text-gray-700 dark:text-gray-300">
                 {displayContent}
             </p>
+
             {/* Expand/Collapse button for long announcements */}
             {showExpandButton && (
                 <Button
@@ -45,8 +46,11 @@ const AnnouncementCard = ({ announcement }) => {
             )}
             {/* Announcement timestamp */}
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-auto pt-2 border-t border-gray-100 dark:border-gray-700">
-                Announced: {announcement.createdAt.toLocaleDateString()} at {announcement.createdAt.toLocaleTimeString()}
+                Announced: {new Date(announcement.createdAt).toLocaleDateString('en-GB')} at {new Date(announcement.createdAt).toLocaleTimeString()}
+                <br />
+                Last updated: {new Date(announcement.lastModifiedAt).toLocaleDateString('en-GB')} at {new Date(announcement.lastModifiedAt).toLocaleTimeString()}
             </p>
+
         </Card>
     );
 };
@@ -81,7 +85,7 @@ const Dashboard = () => {
         const hour = new Date().getHours();
         if (hour < 12) {
             return 'Good Morning';
-        } else if (hour < 18) {
+        } else if (hour < 15) {
             return 'Good Afternoon';
         } else {
             return 'Good Evening';
@@ -109,7 +113,7 @@ const Dashboard = () => {
                     const data = doc.data();
                     // Convert Firestore Timestamp to Date object, or use existing Date string
                     const createdAtDate = data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
-
+                    const lastModifiedAt = data.lastModifiedAt?.toDate ? data.lastModifiedAt.toDate() : (data.lastModifiedAt instanceof Date ? data.lastModifiedAt : null);
                     // Normalize announcement date to start of day for comparison
                     const announcementDateOnly = new Date(createdAtDate);
                     announcementDateOnly.setHours(0, 0, 0, 0);
@@ -123,6 +127,7 @@ const Dashboard = () => {
                         id: doc.id,
                         ...data,
                         createdAt: createdAtDate,
+                        lastModifiedAt: lastModifiedAt,
                         isNew: isNew
                     };
                 });
@@ -333,84 +338,94 @@ const Dashboard = () => {
             <Modal
                 show={showEmployeeDetailModal}
                 title="Employee Details"
-                onConfirm={handleCloseEmployeeDetailModal} // Close button is the "Confirm" action
+                onConfirm={handleCloseEmployeeDetailModal}
                 confirmText="Close"
-                // No cancel button needed for a simple view modal
-                onCancel={undefined} // Explicitly set to undefined to hide cancel button
+                onCancel={undefined}
             >
                 {selectedEmployeeDetails && (
-                    <div className="space-y-4 text-gray-700 dark:text-gray-300">
-                        <div className="flex flex-col sm:flex-row items-center sm:items-start space-x-0 sm:space-x-4 mb-4">
+                    <div className="space-y-6 text-gray-700 dark:text-gray-300 max-h-[80vh] overflow-y-auto pr-2">
+                        {/* Header section with avatar and name */}
+                        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
                             <Avatar
-                                src="https://wilang.org/wp-content/uploads/2016/04/lion-1-150x150.jpg" // Corrected URL
+                                src="https://wilang.org/wp-content/uploads/2016/04/lion-1-150x150.jpg"
                                 alt={selectedEmployeeDetails.name || 'User'}
                                 fallback={selectedEmployeeDetails.name ? selectedEmployeeDetails.name.charAt(0).toUpperCase() : 'U'}
                                 size="xl"
-                                className="mb-4 sm:mb-0" // Add margin-bottom for mobile, remove for sm+
                             />
                             <div className="text-center sm:text-left">
-                                <h4 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{selectedEmployeeDetails.name || 'N/A'}</h4>
+                                <h4 className="text-2xl font-bold text-gray-900 dark:text-white">{selectedEmployeeDetails.name || 'N/A'}</h4>
                                 <p className="text-sm text-gray-600 dark:text-gray-400">{selectedEmployeeDetails.role || 'Employee'}</p>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-2 gap-x-6 gap-y-3">
-                            {/* Each detail item is now a flex container for responsiveness */}
-                            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-                                <p className="font-medium text-gray-800 dark:text-gray-200 sm:min-w-[120px]">Email:</p>
-                                <p className="flex-1">{selectedEmployeeDetails.email || 'N/A'}</p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-                                <p className="font-medium text-gray-800 dark:text-gray-200 sm:min-w-[120px]">Phone Number:</p>
-                                <p className="flex-1">{selectedEmployeeDetails.phoneNumber || 'N/A'}</p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-                                <p className="font-medium text-gray-800 dark:text-gray-200 sm:min-w-[120px]">Date of Birth:</p>
-                                <p className="flex-1">{selectedEmployeeDetails.dob || 'N/A'}</p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-                                <p className="font-medium text-gray-800 dark:text-gray-200 sm:min-w-[120px]">Employee ID:</p>
-                                <p className="flex-1">{selectedEmployeeDetails.employeeId || 'N/A'}</p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-                                <p className="font-medium text-gray-800 dark:text-gray-200 sm:min-w-[120px]">Aadhar Number:</p>
-                                <p className="flex-1">{selectedEmployeeDetails.aadharNumber || 'N/A'}</p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-                                <p className="font-medium text-gray-800 dark:text-gray-200 sm:min-w-[120px]">PAN Card Number:</p>
-                                <p className="flex-1">{selectedEmployeeDetails.panCardNumber || 'N/A'}</p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-                                <p className="font-medium text-gray-800 dark:text-gray-200 sm:min-w-[120px]">Department:</p>
-                                <p className="flex-1">{selectedEmployeeDetails.department || 'N/A'}</p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-                                <p className="font-medium text-gray-800 dark:text-gray-200 sm:min-w-[120px]">Leave Balance:</p>
-                                <p className="flex-1">{selectedEmployeeDetails.leaveBalance !== undefined ? selectedEmployeeDetails.leaveBalance : 'N/A'}</p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-                                <p className="font-medium text-gray-800 dark:text-gray-200 sm:min-w-[120px]">Bank Name:</p>
-                                <p className="flex-1">{selectedEmployeeDetails.bankName || 'N/A'}</p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-                                <p className="font-medium text-gray-800 dark:text-gray-200 sm:min-w-[120px]">Bank Account No.:</p>
-                                <p className="flex-1">{selectedEmployeeDetails.bankAccountNumber || 'N/A'}</p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-2">
-                                <p className="font-medium text-gray-800 dark:text-gray-200 sm:min-w-[120px]">IFSC Code:</p>
-                                <p className="flex-1">{selectedEmployeeDetails.ifscCode || 'N/A'}</p>
+                        {/* Section: Personal Information */}
+                        <div>
+                            <h5 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">Personal Information</h5>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {[
+                                    ['Email', selectedEmployeeDetails.email],
+                                    ['Phone Number', selectedEmployeeDetails.phoneNumber],
+                                    ['Date of Birth', selectedEmployeeDetails.dob],
+                                    ['Employee ID', selectedEmployeeDetails.employeeId],
+                                    ['Aadhar Number', selectedEmployeeDetails.aadharNumber],
+                                    ['PAN Card Number', selectedEmployeeDetails.panCardNumber],
+                                    ['Department', selectedEmployeeDetails.department],
+                                    ['Leave Balance', selectedEmployeeDetails.leaveBalance],
+                                ].map(([label, value], idx) => (
+                                    <div
+                                        key={idx}
+                                        className="bg-gray-50 dark:bg-gray-700 rounded-md px-4 py-2 shadow-sm border border-gray-200 dark:border-gray-600"
+                                    >
+                                        <p className="text-sm text-gray-500 dark:text-gray-300 font-medium mb-1">{label}</p>
+                                        <p className="text-base text-gray-800 dark:text-white font-semibold break-words">
+                                            {value !== undefined && value !== '' ? value : 'N/A'}
+                                        </p>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                        <div className="mt-4">
-                            <p className="font-medium text-gray-800 dark:text-gray-200">Address:</p>
-                            <p>{selectedEmployeeDetails.address || 'N/A'}</p>
+
+                        {/* Section: Banking Information */}
+                        <div>
+                            <h5 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">Banking Information</h5>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {[
+                                    ['Bank Name', selectedEmployeeDetails.bankName],
+                                    ['Bank Account No.', selectedEmployeeDetails.bankAccountNumber],
+                                    ['IFSC Code', selectedEmployeeDetails.ifscCode],
+                                ].map(([label, value], idx) => (
+                                    <div
+                                        key={idx}
+                                        className="bg-gray-50 dark:bg-gray-700 rounded-md px-4 py-2 shadow-sm border border-gray-200 dark:border-gray-600"
+                                    >
+                                        <p className="text-sm text-gray-500 dark:text-gray-300 font-medium mb-1">{label}</p>
+                                        <p className="text-base text-gray-800 dark:text-white font-semibold break-words">
+                                            {value !== undefined && value !== '' ? value : 'N/A'}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                        <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-                            User ID (UID): {selectedEmployeeDetails.id || 'N/A'}
+
+                        {/* Address section */}
+                        <div>
+                            <h5 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">Address</h5>
+                            <div className="bg-gray-50 dark:bg-gray-700 rounded-md px-4 py-2 shadow-sm border border-gray-200 dark:border-gray-600">
+                                <p className="text-base text-gray-800 dark:text-white font-semibold break-words">
+                                    {selectedEmployeeDetails.address || 'N/A'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* UID */}
+                        <div className="text-xs text-gray-500 dark:text-gray-400 text-center sm:text-left">
+                            UID: {selectedEmployeeDetails.id || 'N/A'}
                         </div>
                     </div>
                 )}
             </Modal>
+
+
         </div>
     );
 };

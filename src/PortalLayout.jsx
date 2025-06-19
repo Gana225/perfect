@@ -1,28 +1,37 @@
 // src/PortalLayout.jsx
 import React, { useState } from 'react';
-import { Routes, Route,Link, Navigate } from 'react-router-dom'; // Import Outlet, Link, Navigate
-import { useAuth } from './AuthContext'; // To get isAdmin for navigation links and route protection
-import { Button } from './uiComponents'; // Assuming Button is imported for header
-import { Menu, X } from 'lucide-react'; // Icons for mobile menu
-
-// Import your page components
+import { Routes, Route, Link, Navigate } from 'react-router-dom';
+import { useAuth } from './AuthContext';
+import { Button } from './uiComponents';
+import { Menu, X } from 'lucide-react';
 import Dashboard from './Dashboard';
 import MyProfile from './MyProfile';
 import ManageEmployees from "./ManageEmployees.jsx";
 import ManagePayments from "./ManagePayments.jsx";
-import {navLinkClasses} from './styles.js';
+import { navLinkClasses } from './styles.js';
+import AdminManageAnnouncements from "./AdminAnnouncement.jsx";
+import { LoadingSpinner } from './uiComponents'; // Import a loading spinner component
 
 const PortalLayout = () => {
-    const { isAdmin, currentUser, logout } = useAuth(); // Assuming logout function is available
+    const { isAdmin, currentUser, logout, isLoading } = useAuth(); // Added isLoading from auth context
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+    // Show loading UI while auth state is loading
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
+                <LoadingSpinner size={60} message="Loading user data..." />
+            </div>
+        );
+    }
 
     // This PrivateRoute is specific to PortalLayout's nested routes
     const PrivateRouteForPortal = ({ children, requiredAdmin = false }) => {
-        if (!currentUser) { // Should technically be caught by App.jsx, but good for safety
+        if (!currentUser) {
             return <Navigate to="/login" replace />;
         }
         if (requiredAdmin && !isAdmin) {
-            return <Navigate to="/dashboard" replace />; // Redirect if not admin and admin is required
+            return <Navigate to="/dashboard" replace />;
         }
         return children;
     };
@@ -48,12 +57,36 @@ const PortalLayout = () => {
                     <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)} icon={X} />
                 </div>
                 <nav className="flex flex-col p-4 space-y-2">
-                    <Link to="/dashboard" className={navLinkClasses} onClick={() => setIsMobileMenuOpen(false)}>Dashboard</Link>
-                    <Link to="/profile" className={navLinkClasses} onClick={() => setIsMobileMenuOpen(false)}>My Profile</Link>
+                    <Link to="/dashboard" className={navLinkClasses} onClick={() => setIsMobileMenuOpen(false)}>
+                        Dashboard
+                    </Link>
+                    <Link to="/profile" className={navLinkClasses} onClick={() => setIsMobileMenuOpen(false)}>
+                        My Profile
+                    </Link>
                     {isAdmin && (
-                        <Link to="/manage-employees" className={navLinkClasses} onClick={() => setIsMobileMenuOpen(false)}>Manage Employees</Link>
+                        <>
+                            <Link
+                                to="/manage-employees"
+                                className={navLinkClasses}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                Manage Employees
+                            </Link>
+                            <Link to="/payments" className={navLinkClasses} onClick={() => setIsMobileMenuOpen(false)}>
+                                Manage Payments
+                            </Link>
+                            <Link
+                                to="/admin-announcements"
+                                className={navLinkClasses}
+                                onClick={() => setIsMobileMenuOpen(false)}
+                            >
+                                Manage Announcements
+                            </Link>
+                        </>
                     )}
-                    <Button onClick={logout} className="mt-4 hover:bg-red-500" variant="danger">Logout</Button>
+                    <Button onClick={logout} className="mt-4 hover:bg-red-500" variant="danger">
+                        Logout
+                    </Button>
                 </nav>
             </aside>
 
@@ -75,29 +108,41 @@ const PortalLayout = () => {
 
                 {/* Desktop Navigation */}
                 <nav className="hidden md:flex items-center mx-auto space-x-2 sm:space-x-4">
-                    {/* The navLinks from your snippet, now using Link */}
-                    <Link to="/dashboard" className={navLinkClasses}>Dashboard</Link>
-                    <Link to="/profile" className={navLinkClasses}>My Profile</Link>
+                    <Link to="/dashboard" className={navLinkClasses}>
+                        Dashboard
+                    </Link>
+                    <Link to="/profile" className={navLinkClasses}>
+                        My Profile
+                    </Link>
                     {isAdmin && (
                         <>
-                        <Link to="/manage-employees" className={navLinkClasses}>Manage Employees</Link>
-                        <Link to="/Payments" className={navLinkClasses}>Manage Payments</Link></>
+                            <Link to="/manage-employees" className={navLinkClasses}>
+                                Manage Employees
+                            </Link>
+                            <Link to="/payments" className={navLinkClasses}>
+                                Manage Payments
+                            </Link>
+                            <Link to="/admin-announcements" className={navLinkClasses}>
+                                Manage Announcements
+                            </Link>
+                        </>
                     )}
                 </nav>
 
                 {/* User/Logout button for desktop */}
                 <div className="hidden md:flex items-center space-x-4">
-                     <span className="text-gray-700 dark:text-gray-300 text-sm">
-                        Hello, {currentUser?.displayName || currentUser?.email || 'User'}!
-                    </span>
-                    <Button onClick={logout} variant="secondary" size="sm" className="hover:bg-red-500">Logout</Button>
+          <span className="text-gray-700 dark:text-gray-300 text-sm">
+            Hello, {currentUser?.displayName || currentUser?.email || 'User'}!
+          </span>
+                    <Button onClick={logout} variant="secondary" size="sm" className="hover:bg-red-500">
+                        Logout
+                    </Button>
                 </div>
             </header>
 
             {/* Main content area where nested routes will be rendered */}
             <main className="flex-1 p-6 sm:p-8">
                 <Routes>
-                    {/* Define nested routes here. These paths are relative to the parent path (i.e., /* in App.jsx) */}
                     <Route
                         path="dashboard"
                         element={
@@ -122,17 +167,23 @@ const PortalLayout = () => {
                             </PrivateRouteForPortal>
                         }
                     />
-
                     <Route
-                        path="Payments"
+                        path="payments"
                         element={
                             <PrivateRouteForPortal>
                                 <ManagePayments />
                             </PrivateRouteForPortal>
                         }
                     />
-
-                    {/* Default route within PortalLayout (e.g., if user navigates to / or /auth-path) */}
+                    <Route
+                        path="admin-announcements"
+                        element={
+                            <PrivateRouteForPortal>
+                                <AdminManageAnnouncements />
+                            </PrivateRouteForPortal>
+                        }
+                    />
+                    {/* Default route within PortalLayout */}
                     <Route path="*" element={<Navigate to="dashboard" replace />} />
                 </Routes>
             </main>
