@@ -181,8 +181,6 @@ const PortalLayout = () => {
                         }
                     />
 
-                    <Route path="/delete-user/:uid" element={<DeleteUser />} />
-
                     {/* Catch All */}
                     <Route path="*" element={<Navigate to="dashboard" replace />} />
                 </Routes>
