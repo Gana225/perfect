@@ -1,5 +1,5 @@
 // src/firebaseConfig.js
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import {
     getAuth,
     signInAnonymously,
@@ -8,14 +8,15 @@ import {
     signOut,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
+    deleteUser
 } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, getDocs, } from 'firebase/firestore';
 import {getStorage} from 'firebase/storage';
 
 // --- Your Firebase project configuration ---
 // IMPORTANT: Replace these with your actual Firebase project's details.
 // You can find these in your Firebase project settings -> Project settings -> General -> Your apps -> Firebase SDK snippet -> Config
-const firebaseConfig = {
+export const firebaseConfig = {
     apiKey: "AIzaSyBX8pz56e3Q_OUOStDl57_ePPgYIW0qRY4",
     authDomain: "egty-c7097.firebaseapp.com",
     projectId: "egty-c7097",
@@ -25,6 +26,7 @@ const firebaseConfig = {
     measurementId: "G-X4YHN217P6"
 };
 
+
 // --- Application ID and Initial Auth Token ---
 // For a standard React/Vite app, you often use the projectId as a general app identifier for Firestore paths.
 // `initialAuthToken` will be null unless you have a specific system (like Canvas) injecting it.
@@ -32,15 +34,18 @@ export const appId = firebaseConfig.projectId; // Using projectId as a convenien
 export const initialAuthToken = null; // No initial token provided by default
 
 // Initialize Firebase App
-const app = initializeApp(firebaseConfig);
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
+const secondaryApp = initializeApp(firebaseConfig, 'SecondaryApp'); // isolated instance
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+export const secondaryAuth = getAuth(secondaryApp);
 export const storage = getStorage(app);
 
 // Export all necessary Firebase instances and functions
 // This makes them easily importable across your application.
 export {
     app,
+    deleteUser,
     signInAnonymously, // For guest login
     signInWithCustomToken, // For Canvas-provided tokens
     onAuthStateChanged, // To listen for auth state changes

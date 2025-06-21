@@ -46,6 +46,8 @@ function App() {
 
                     {/* Optional: A 404 Not Found route */}
                     <Route path="*" element={<NotFoundPage />} />
+
+
                 </Routes>
             </div>
         </Router>

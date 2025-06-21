@@ -1,14 +1,5 @@
 import React, { useState, useEffect } from 'react';
-// IMPORTANT: >>> PLEASE VERIFY AND ADJUST THIS PATH <<<
-// If your 'ManageEmployees.jsx' is in a subdirectory (e.g., 'src/components/')
-// and 'uiComponents.jsx' is directly in your 'src/' folder, then '../uiComponents' is correct.
-// If both files are in the SAME folder (e.g., both in 'src/'), change this to './uiComponents'.
 import { Button, Input, Textarea, Select, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Modal, Alert, LoadingSpinner } from './uiComponents'; // Adjusted path
-
-// IMPORTANT: >>> PLEASE VERIFY AND ADJUST THIS PATH <<<
-// If your 'ManageEmployees.jsx' is in a subdirectory (e.g., 'src/components/')
-// and 'firebaseConfig.js' is directly in your 'src/' folder, then '../firebaseConfig' is correct.
-// If both files are in the SAME folder (e.g., both in 'src/'), change this to './firebaseConfig'.
 import {
     auth,
     db,    // Correctly importing the db instance
@@ -20,9 +11,12 @@ import {
     onSnapshot,
     updateDoc,
     doc,
-    setDoc, // Used for creating a document with a specific ID (the user's UID)
-    createUserWithEmailAndPassword, // For creating new auth users
-} from './firebaseConfig'; // Adjusted path
+    setDoc,
+    createUserWithEmailAndPassword,
+    secondaryAuth,
+} from './firebaseConfig';
+
+
 
 const ManageEmployees = () => {
     // Global variables provided by the Canvas environment.
@@ -66,6 +60,7 @@ const ManageEmployees = () => {
     // State for handling validation errors, especially for uniqueness checks
     const [errors, setErrors] = useState({});
 
+    const [showaddData, setshowaddData] = useState(true);
     // State for modal messages and visibility
     const [showModal, setShowModal] = useState(false);
     const [modalConfig, setModalConfig] = useState({
@@ -81,6 +76,7 @@ const ManageEmployees = () => {
     const [alertMessage, setAlertMessage] = useState('');
     const [alertType, setAlertType] = useState('info');
 
+    const [showaddData1, setshowaddData1] = useState(true);
 
     // 1. Initialize Firebase and listen for auth state changes
     useEffect(() => {
@@ -243,14 +239,20 @@ const ManageEmployees = () => {
             type: 'confirm',
             onConfirm: async () => {
                 setShowModal(false); // Close modal
+                setshowaddData(false)
+                setshowaddData1(false)
                 setLoading(true); // Show loading spinner during operation
                 try {
+
                     // 1. Create Firebase Auth User
-                    const userCredential = await createUserWithEmailAndPassword(auth, formData.email, newEmployeePassword);
+                    const userCredential = await createUserWithEmailAndPassword(secondaryAuth, formData.email, newEmployeePassword);
                     const newUserId = userCredential.user.uid;
+
+                    await secondaryAuth.signOut();
 
                     // Prepare data for Firestore (exclude password, it's for auth only)
                     const employeeDataToSave = { ...formData };
+
                     // The password field is not part of formData for the employee document
                     // since it's used only for authentication.
 
@@ -259,9 +261,13 @@ const ManageEmployees = () => {
                     const employeeDocRef = doc(db, `apps/egty-c7097/users`, newUserId);
                     await setDoc(employeeDocRef, employeeDataToSave);
 
-                    showAppAlert('Employee Added Successfully!', 'success');
                     handleCancel(); // Reset form and go back to list view
+                    setshowaddData1(true)
+                    setshowaddData(true)
+                    showAppAlert('Employee Added Successfully!', 'success');
+
                 } catch (error) {
+                    setshowaddData(true)
                     console.error("Error creating user or adding employee:", error);
                     let errorMessage = 'Failed to add employee. Please try again.';
                     if (error.code === 'auth/email-already-in-use') {
@@ -301,6 +307,7 @@ const ManageEmployees = () => {
             type: 'confirm',
             onConfirm: async () => {
                 setShowModal(false); // Close modal
+                setshowaddData1(false)
                 setLoading(true); // Show loading spinner
                 try {
                     // Update document at `artifacts/${appId}/users/{employee.id}`
@@ -308,7 +315,9 @@ const ManageEmployees = () => {
                     await updateDoc(employeeDocRef, formData);
                     showAppAlert('Employee Updated Successfully!', 'success');
                     handleCancel(); // Reset form and go back to list view
+                    setshowaddData1(true)
                 } catch (error) {
+                    setshowaddData1(true)
                     console.error("Error updating employee:", error);
                     showAppAlert('Failed to update employee. Please try again.', 'error');
                 } finally {
@@ -381,309 +390,323 @@ const ManageEmployees = () => {
 
     // Main component render
     return (
-        <div className="container mx-auto p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <h2 className="text-3xl font-semibold text-gray-800 dark:text-gray-200 mb-6">Manage Employees</h2>
+        <>
+            {showaddData1===true && (
+    <div className="container mx-auto p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+        <h2 className="text-3xl font-semibold text-gray-800 dark:text-gray-200 mb-6">Manage Employees</h2>
 
-            {/* Global Alert Message */}
-            {showAlert && (
-                <Alert
-                    message={alertMessage}
-                    type={alertType}
-                    onClose={() => setShowAlert(false)}
-                    className="mb-4"
-                />
-            )}
-
-            {/* --- Employee List View --- */}
-            {view === 'list' && (
-                <>
-                    <div className="flex flex-col md:flex-row justify-between items-center mb-6 space-y-4 md:space-y-0">
-                        {/* Search Input */}
-                        <Input
-                            type="text"
-                            placeholder="Search by (Name, ID, Email, Aadhar)"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full md:w-80"
-                        />
-                        <Button onClick={() => setView('add')} className="w-full md:w-auto">Add New Employee</Button>
-                    </div>
-
-                    {filteredEmployees.length === 0 ? (
-                        <p className="text-gray-600 dark:text-gray-400 text-center py-8">No employees found or matching your search criteria.</p>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead>Employee ID</TableHead>
-                                    <TableHead>Email</TableHead>
-                                    <TableHead>Role</TableHead>
-                                    <TableHead className="text-center">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredEmployees.map(employee => (
-                                    <TableRow key={employee.id}>
-                                        <TableCell className="font-medium">{employee.name}</TableCell>
-                                        <TableCell>{employee.employeeId}</TableCell>
-                                        <TableCell>{employee.email}</TableCell>
-                                        <TableCell>{employee.role}</TableCell>
-                                        <TableCell className="text-center">
-                                            <Button onClick={() => startEditEmployee(employee)} variant="secondary" size="sm">Edit</Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    )}
-                </>
-            )}
-
-            {/* --- Add/Edit Employee Form View --- */}
-            {(view === 'add' || view === 'edit') && (
-                <form onSubmit={(e) => { e.preventDefault(); view === 'add' ? handleAddEmployee() : handleUpdateEmployee(); }} className="space-y-5 p-4 md:p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
-                    <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 text-center mb-6">
-                        {view === 'add' ? 'Add New Employee (Register User)' : 'Edit Employee Details'}
-                    </h3>
-
-                    {/* Personal Details Section */}
-                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md border border-gray-200 dark:border-gray-600">
-                        <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Personal Details</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Name */}
-                            <div>
-                                <Input
-                                    id="name"
-                                    name="name" // Important for handleChange
-                                    label="Name"
-                                    value={formData.name}
-                                    onChange={handleChange}
-                                    required
-                                    className={errors.name ? 'border-red-500' : ''}
-                                />
-                                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-                            </div>
-
-                            {/* Email */}
-                            <div>
-                                <Input
-                                    id="email"
-                                    name="email"
-                                    type="email"
-                                    label="Email"
-                                    value={formData.email}
-                                    onChange={handleChange}
-                                    required
-                                    className={errors.email ? 'border-red-500' : ''}
-                                    disabled={view === 'edit'} // Disable email edit for existing users
-                                />
-                                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-                            </div>
-
-                            {/* Password (only for Add mode) */}
-                            {view === 'add' && (
-                                <div>
-                                    <Input
-                                        id="password"
-                                        name="password"
-                                        type="password"
-                                        label="Password"
-                                        value={newEmployeePassword}
-                                        onChange={(e) => setNewEmployeePassword(e.target.value)}
-                                        required
-                                        className={errors.password ? 'border-red-500' : ''}
-                                    />
-                                    {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
-                                </div>
-                            )}
-
-                            {/* Phone Number */}
-                            <div>
-                                <Input
-                                    id="phoneNumber"
-                                    name="phoneNumber"
-                                    type="tel"
-                                    label="Phone Number"
-                                    value={formData.phoneNumber}
-                                    onChange={handleChange}
-                                    required
-                                    className={errors.phoneNumber ? 'border-red-500' : ''}
-                                />
-                                {errors.phoneNumber && <p className="text-red-500 text-xs mt-1">{errors.phoneNumber}</p>}
-                            </div>
-
-                            {/* DOB */}
-                            <div>
-                                <Input
-                                    id="dob"
-                                    name="dob"
-                                    type="date"
-                                    label="Date of Birth"
-                                    value={formData.dob}
-                                    onChange={handleChange}
-                                    required
-                                    className={errors.dob ? 'border-red-500' : ''}
-                                />
-                                {errors.dob && <p className="text-red-500 text-xs mt-1">{errors.dob}</p>}
-                            </div>
-
-                            {/* Aadhar Number (with dynamic check) */}
-                            <div>
-                                <Input
-                                    id="aadharNumber"
-                                    name="aadharNumber"
-                                    type="text"
-                                    label="Aadhar Number"
-                                    value={formData.aadharNumber}
-                                    onChange={handleChange}
-                                    required
-                                    className={errors.aadharNumber ? 'border-red-500' : ''}
-                                />
-                                {errors.aadharNumber && <p className="text-red-500 text-xs mt-1">{errors.aadharNumber}</p>}
-                            </div>
-
-                            {/* PAN Card Number (with dynamic check) */}
-                            <div>
-                                <Input
-                                    id="panCardNumber"
-                                    name="panCardNumber"
-                                    type="text"
-                                    label="PAN Card Number"
-                                    value={formData.panCardNumber}
-                                    onChange={handleChange}
-                                    required
-                                    className={errors.panCardNumber ? 'border-red-500' : ''}
-                                />
-                                {errors.panCardNumber && <p className="text-red-500 text-xs mt-1">{errors.panCardNumber}</p>}
-                            </div>
-
-                            {/* Employee ID (with dynamic check) */}
-                            <div>
-                                <Input
-                                    id="employeeId"
-                                    name="employeeId"
-                                    type="text"
-                                    label="Employee ID"
-                                    value={formData.employeeId}
-                                    onChange={handleChange}
-                                    required
-                                    className={errors.employeeId ? 'border-red-500' : ''}
-                                />
-                                {errors.employeeId && <p className="text-red-500 text-xs mt-1">{errors.employeeId}</p>}
-                            </div>
-
-                            {/* Role of the Employee */}
-                            <div>
-                                <Select
-                                    id="role"
-                                    name="role"
-                                    label="Role of the Employee"
-                                    value={formData.role}
-                                    onChange={handleChange}
-                                    options={[
-                                        { value: 'Employee', label: 'Employee' },
-                                        { value: 'Manager', label: 'Manager' },
-                                        { value: 'HR', label: 'HR' },
-                                        { value: 'Accounts', label: 'Accounts' },
-                                    ]}
-                                    required
-                                    className={errors.role ? 'border-red-500' : ''}
-                                />
-                                {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
-                            </div>
-                        </div>
-
-                        {/* Address - Full width */}
-                        <div className="mt-4">
-                            <Textarea
-                                id="address"
-                                name="address"
-                                label="Address"
-                                value={formData.address}
-                                onChange={handleChange}
-                                rows="3"
-                                required
-                                className={errors.address ? 'border-red-500' : ''}
-                            />
-                            {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
-                        </div>
-                    </div>
-
-                    {/* Bank Details Section */}
-                    <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md border border-gray-200 dark:border-gray-600">
-                        <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Bank Details</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Bank Name */}
-                            <div>
-                                <Input
-                                    id="bankName"
-                                    name="bankName"
-                                    type="text"
-                                    label="Bank Name"
-                                    value={formData.bankName}
-                                    onChange={handleChange}
-                                    required
-                                    className={errors.bankName ? 'border-red-500' : ''}
-                                />
-                                {errors.bankName && <p className="text-red-500 text-xs mt-1">{errors.bankName}</p>}
-                            </div>
-
-                            {/* Bank Account Number */}
-                            <div>
-                                <Input
-                                    id="bankAccountNumber"
-                                    name="bankAccountNumber"
-                                    type="text"
-                                    label="Bank Account Number"
-                                    value={formData.bankAccountNumber}
-                                    onChange={handleChange}
-                                    required
-                                    className={errors.bankAccountNumber ? 'border-red-500' : ''}
-                                />
-                                {errors.bankAccountNumber && <p className="text-red-500 text-xs mt-1">{errors.bankAccountNumber}</p>}
-                            </div>
-
-                            {/* IFSC Code */}
-                            <div>
-                                <Input
-                                    id="ifscCode"
-                                    name="ifscCode"
-                                    type="text"
-                                    label="IFSC Code"
-                                    value={formData.ifscCode}
-                                    onChange={handleChange}
-                                    required
-                                    className={errors.ifscCode ? 'border-red-500' : ''}
-                                />
-                                {errors.ifscCode && <p className="text-red-500 text-xs mt-1">{errors.ifscCode}</p>}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex justify-end space-x-3 mt-6">
-                        <Button type="button" variant="secondary" onClick={handleCancel}>Cancel</Button>
-                        <Button type="submit" variant="primary">
-                            {view === 'add' ? 'Authenticate & Add Employee' : 'Update Employee'}
-                        </Button>
-                    </div>
-                </form>
-            )}
-
-            {/* Confirmation Modal */}
-            <Modal
-                show={showModal}
-                title={modalConfig.title}
-                message={modalConfig.message}
-                onConfirm={modalConfig.onConfirm}
-                onCancel={modalConfig.onCancel}
-                confirmText={modalConfig.confirmText}
-                cancelText={modalConfig.cancelText}
-                type={modalConfig.type}
+        {/* Global Alert Message */}
+        {showAlert && (
+            <Alert
+                message={alertMessage}
+                type={alertType}
+                onClose={() => setShowAlert(false)}
+                className="mb-4"
             />
-        </div>
-    );
+        )}
+
+        {/* --- Employee List View --- */}
+        {view === 'list' && (
+            <>
+                <div className="flex flex-col md:flex-row justify-between items-center mb-6 space-y-4 md:space-y-0">
+                    {/* Search Input */}
+                    <Input
+                        type="text"
+                        placeholder="Search by (Name, ID, Email, Aadhar)"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full md:w-80"
+                    />
+                    <Button onClick={() => {
+                        setView('add');
+                        setshowaddData(true)
+                    }} className="w-full md:w-auto">Add New Employee</Button>
+                </div>
+
+                {filteredEmployees.length === 0 ? (
+                    <p className="text-gray-600 dark:text-gray-400 text-center py-8">No employees found or matching your
+                        search criteria.</p>
+                ) : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Employee ID</TableHead>
+                                <TableHead>Email</TableHead>
+                                <TableHead>Role</TableHead>
+                                <TableHead className="text-center">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredEmployees.map(employee => (
+                                <TableRow key={employee.id}>
+                                    <TableCell className="font-medium">{employee.name}</TableCell>
+                                    <TableCell>{employee.employeeId}</TableCell>
+                                    <TableCell>{employee.email}</TableCell>
+                                    <TableCell>{employee.role}</TableCell>
+                                    <TableCell className="text-center">
+                                        <Button onClick={() => startEditEmployee(employee)} variant="secondary"
+                                                size="sm">Edit</Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
+            </>
+        )}
+
+        {/* --- Add/Edit Employee Form View --- */}
+        {(showaddData === true && view === 'add' || view === 'edit') && (
+            <form onSubmit={(e) => {
+                e.preventDefault();
+                view === 'add' ? handleAddEmployee() : handleUpdateEmployee();
+            }} className="space-y-5 p-4 md:p-6 border border-gray-200 dark:border-gray-700 rounded-lg">
+                <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-200 text-center mb-6">
+                    {view === 'add' ? 'Add New Employee (Register User)' : 'Edit Employee Details'}
+                </h3>
+
+                {/* Personal Details Section */}
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md border border-gray-200 dark:border-gray-600">
+                    <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Personal Details</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Name */}
+                        <div>
+                            <Input
+                                id="name"
+                                name="name" // Important for handleChange
+                                label="Name"
+                                value={formData.name}
+                                onChange={handleChange}
+                                required
+                                className={errors.name ? 'border-red-500' : ''}
+                            />
+                            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                        </div>
+
+                        {/* Email */}
+                        <div>
+                            <Input
+                                id="email"
+                                name="email"
+                                type="email"
+                                label="Email"
+                                value={formData.email}
+                                onChange={handleChange}
+                                required
+                                className={errors.email ? 'border-red-500' : ''}
+                                disabled={view === 'edit'} // Disable email edit for existing users
+                            />
+                            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                        </div>
+
+                        {/* Password (only for Add mode) */}
+                        {view === 'add' && (
+                            <div>
+                                <Input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    label="Password"
+                                    value={newEmployeePassword}
+                                    onChange={(e) => setNewEmployeePassword(e.target.value)}
+                                    required
+                                    className={errors.password ? 'border-red-500' : ''}
+                                />
+                                {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+                            </div>
+                        )}
+
+                        {/* Phone Number */}
+                        <div>
+                            <Input
+                                id="phoneNumber"
+                                name="phoneNumber"
+                                type="tel"
+                                label="Phone Number"
+                                value={formData.phoneNumber}
+                                onChange={handleChange}
+                                required
+                                className={errors.phoneNumber ? 'border-red-500' : ''}
+                            />
+                            {errors.phoneNumber && <p className="text-red-500 text-xs mt-1">{errors.phoneNumber}</p>}
+                        </div>
+
+                        {/* DOB */}
+                        <div>
+                            <Input
+                                id="dob"
+                                name="dob"
+                                type="date"
+                                label="Date of Birth"
+                                value={formData.dob}
+                                onChange={handleChange}
+                                required
+                                className={errors.dob ? 'border-red-500' : ''}
+                            />
+                            {errors.dob && <p className="text-red-500 text-xs mt-1">{errors.dob}</p>}
+                        </div>
+
+                        {/* Aadhar Number (with dynamic check) */}
+                        <div>
+                            <Input
+                                id="aadharNumber"
+                                name="aadharNumber"
+                                type="text"
+                                label="Aadhar Number"
+                                value={formData.aadharNumber}
+                                onChange={handleChange}
+                                required
+                                className={errors.aadharNumber ? 'border-red-500' : ''}
+                            />
+                            {errors.aadharNumber && <p className="text-red-500 text-xs mt-1">{errors.aadharNumber}</p>}
+                        </div>
+
+                        {/* PAN Card Number (with dynamic check) */}
+                        <div>
+                            <Input
+                                id="panCardNumber"
+                                name="panCardNumber"
+                                type="text"
+                                label="PAN Card Number"
+                                value={formData.panCardNumber}
+                                onChange={handleChange}
+                                required
+                                className={errors.panCardNumber ? 'border-red-500' : ''}
+                            />
+                            {errors.panCardNumber &&
+                                <p className="text-red-500 text-xs mt-1">{errors.panCardNumber}</p>}
+                        </div>
+
+                        {/* Employee ID (with dynamic check) */}
+                        <div>
+                            <Input
+                                id="employeeId"
+                                name="employeeId"
+                                type="text"
+                                label="Employee ID"
+                                value={formData.employeeId}
+                                onChange={handleChange}
+                                required
+                                className={errors.employeeId ? 'border-red-500' : ''}
+                            />
+                            {errors.employeeId && <p className="text-red-500 text-xs mt-1">{errors.employeeId}</p>}
+                        </div>
+
+                        {/* Role of the Employee */}
+                        <div>
+                            <Select
+                                id="role"
+                                name="role"
+                                label="Role of the Employee"
+                                value={formData.role}
+                                onChange={handleChange}
+                                options={[
+                                    {value: 'Employee', label: 'Employee'},
+                                    {value: 'Manager', label: 'Manager'},
+                                    {value: 'HR', label: 'HR'},
+                                    {value: 'Accounts', label: 'Accounts'},
+                                ]}
+                                required
+                                className={errors.role ? 'border-red-500' : ''}
+                            />
+                            {errors.role && <p className="text-red-500 text-xs mt-1">{errors.role}</p>}
+                        </div>
+                    </div>
+
+                    {/* Address - Full width */}
+                    <div className="mt-4">
+                        <Textarea
+                            id="address"
+                            name="address"
+                            label="Address"
+                            value={formData.address}
+                            onChange={handleChange}
+                            rows="3"
+                            required
+                            className={errors.address ? 'border-red-500' : ''}
+                        />
+                        {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
+                    </div>
+                </div>
+
+                {/* Bank Details Section */}
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-md border border-gray-200 dark:border-gray-600">
+                    <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Bank Details</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Bank Name */}
+                        <div>
+                            <Input
+                                id="bankName"
+                                name="bankName"
+                                type="text"
+                                label="Bank Name"
+                                value={formData.bankName}
+                                onChange={handleChange}
+                                required
+                                className={errors.bankName ? 'border-red-500' : ''}
+                            />
+                            {errors.bankName && <p className="text-red-500 text-xs mt-1">{errors.bankName}</p>}
+                        </div>
+
+                        {/* Bank Account Number */}
+                        <div>
+                            <Input
+                                id="bankAccountNumber"
+                                name="bankAccountNumber"
+                                type="text"
+                                label="Bank Account Number"
+                                value={formData.bankAccountNumber}
+                                onChange={handleChange}
+                                required
+                                className={errors.bankAccountNumber ? 'border-red-500' : ''}
+                            />
+                            {errors.bankAccountNumber &&
+                                <p className="text-red-500 text-xs mt-1">{errors.bankAccountNumber}</p>}
+                        </div>
+
+                        {/* IFSC Code */}
+                        <div>
+                            <Input
+                                id="ifscCode"
+                                name="ifscCode"
+                                type="text"
+                                label="IFSC Code"
+                                value={formData.ifscCode}
+                                onChange={handleChange}
+                                required
+                                className={errors.ifscCode ? 'border-red-500' : ''}
+                            />
+                            {errors.ifscCode && <p className="text-red-500 text-xs mt-1">{errors.ifscCode}</p>}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 mt-6">
+                    <Button type="button" variant="secondary" onClick={handleCancel}>Cancel</Button>
+                    <Button type="submit" variant="primary">
+                        {view === 'add' ? 'Authenticate & Add Employee' : 'Update Employee'}
+                    </Button>
+                </div>
+            </form>
+        )}
+
+        {/* Confirmation Modal */}
+        <Modal
+            show={showModal}
+            title={modalConfig.title}
+            message={modalConfig.message}
+            onConfirm={modalConfig.onConfirm}
+            onCancel={modalConfig.onCancel}
+            confirmText={modalConfig.confirmText}
+            cancelText={modalConfig.cancelText}
+            type={modalConfig.type}
+        />
+    </div>
+                )}
+        </>
+);
 };
 
 export default ManageEmployees;

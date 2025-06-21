@@ -196,6 +196,7 @@ const AdminManageAnnouncements = () => {
             return;
         }
 
+        setShowAddEditModal(false);
         setLoading(true); // Start loading spinner immediately
         try {
             const commonData = {
@@ -221,6 +222,7 @@ const AdminManageAnnouncements = () => {
             setShowAddEditModal(false);
             resetModalStates(); // Clear form fields immediately
         } catch (e) {
+            setShowAddEditModal(true)
             console.error("Error saving announcement:", e);
             setFormError(`Failed to save announcement: ${e.message}`);
             setLoading(false); // Only stop loading on error here, otherwise it's handled by onSnapshot
@@ -249,12 +251,14 @@ const AdminManageAnnouncements = () => {
 
         setLoading(true); // Start loading spinner immediately
         try {
+            setShowDeleteConfirmModal(false)
             await deleteDoc(doc(db, announcemenstdata, announcementToDelete.id));
             setSuccessMessage("Announcement deleted successfully!");
             console.log("Announcement deleted successfully!");
             setShowDeleteConfirmModal(false);
             setAnnouncementToDelete(null);
         } catch (e) {
+            setShowDeleteConfirmModal(true)
             console.error("Error deleting announcement:", e);
             setFormError(`Failed to delete announcement: ${e.message}`);
             setLoading(false); // Only stop loading on error here, otherwise it's handled by onSnapshot
@@ -338,6 +342,10 @@ const AdminManageAnnouncements = () => {
                 cancelText="Cancel"
             >
                 <p className="text-gray-700 dark:text-gray-300">
+
+                    {formError && <Alert type="error" message={formError} />}
+                    <br />
+
                     Are you sure you want to delete the announcement titled:
                     <br />
                     <span className="font-semibold text-red-600 dark:text-red-400">
